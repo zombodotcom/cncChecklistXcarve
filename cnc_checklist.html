@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X-Carve CNC Pre-Flight Checklist</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&family=Work+Sans:wght@400;600;700;800&display=swap');
+        
+        :root {
+            --primary: #FF6B35;
+            --primary-dark: #E85A28;
+            --secondary: #004E89;
+            --success: #2EC4B6;
+            --warning: #FFB627;
+            --danger: #E63946;
+            --bg: #0A0E27;
+            --bg-card: #151933;
+            --bg-hover: #1E2347;
+            --text: #E8E8E8;
+            --text-dim: #A0A0A0;
+            --border: #2C3354;
+            --checkbox-bg: #1E2347;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--secondary) 0%, #003366 100%);
+            border-left: 6px solid var(--primary);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .header .subtitle {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        
+        .mode-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+        }
+        
+        .mode-btn {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid var(--border);
+            background: var(--checkbox-bg);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Work Sans', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .mode-btn:hover {
+            border-color: var(--primary);
+            background: var(--bg-hover);
+            transform: translateY(-2px);
+        }
+        
+        .mode-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            box-shadow: 0 5px 20px rgba(255,107,53,0.4);
+        }
+        
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-card {
+            flex: 1;
+            min-width: 200px;
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            font-family: 'Roboto Mono', monospace;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card.progress .stat-value { color: var(--primary); }
+        .stat-card.time .stat-value { color: var(--success); }
+        
+        .section {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .section.completed {
+            border-color: var(--success);
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(46,196,182,0.1) 100%);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-icon {
+            font-size: 1.8rem;
+        }
+        
+        .section-progress {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+        
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .checklist-item:hover {
+            background: var(--bg-hover);
+        }
+        
+        .checklist-item.checked {
+            opacity: 0.6;
+        }
+        
+        .checkbox {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            margin-right: 15px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--checkbox-bg);
+            transition: all 0.3s ease;
+        }
+        
+        .checklist-item.checked .checkbox {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        
+        .checkbox::after {
+            content: '✓';
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s ease;
+        }
+        
+        .checklist-item.checked .checkbox::after {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .item-text {
+            flex: 1;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        
+        .item-priority {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 10px;
+            letter-spacing: 1px;
+        }
+        
+        .priority-critical {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .priority-important {
+            background: var(--warning);
+            color: var(--bg);
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Work Sans', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,107,53,0.4);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            background: var(--bg-hover);
+        }
+        
+        .warning-box {
+            background: linear-gradient(135deg, rgba(230,57,70,0.2) 0%, rgba(230,57,70,0.05) 100%);
+            border: 2px solid var(--danger);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .warning-title {
+            font-weight: 700;
+            color: var(--danger);
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .tip-box {
+            background: linear-gradient(135deg, rgba(46,196,182,0.2) 0%, rgba(46,196,182,0.05) 100%);
+            border: 2px solid var(--success);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .tip-title {
+            font-weight: 700;
+            color: var(--success);
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .mode-selector {
+                flex-direction: column;
+            }
+            
+            .stats {
+                flex-direction: column;
+            }
+        }
+        
+        .emergency-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            border: 4px solid white;
+            font-weight: 800;
+            font-size: 0.9rem;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(230,57,70,0.5);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 1.2;
+        }
+        
+        .emergency-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(230,57,70,0.7);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: var(--bg-card);
+            border: 3px solid var(--danger);
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-title {
+            font-size: 2rem;
+            color: var(--danger);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+        
+        .modal-close {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ CNC PRE-FLIGHT</h1>
+            <div class="subtitle">X-Carve Post-2021 • Safety First Operations</div>
+        </div>
+        
+        <div class="mode-selector">
+            <button class="mode-btn active" data-mode="quick">
+                ⚡ QUICK MODE<br>
+                <small style="font-size: 0.8rem; opacity: 0.8;">3-5 min • Experienced Operators</small>
+            </button>
+            <button class="mode-btn" data-mode="full">
+                📋 FULL MODE<br>
+                <small style="font-size: 0.8rem; opacity: 0.8;">10-15 min • First of Day / Comprehensive</small>
+            </button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card progress">
+                <div class="stat-value" id="progressPercent">0%</div>
+                <div class="stat-label">Progress</div>
+            </div>
+            <div class="stat-card time">
+                <div class="stat-value" id="estimatedTime">3-5 min</div>
+                <div class="stat-label">Est. Time</div>
+            </div>
+        </div>
+        
+        <div id="checklist-container"></div>
+        
+        <div class="actions">
+            <button class="btn btn-primary" onclick="resetAll()">🔄 Reset All</button>
+            <button class="btn btn-secondary" onclick="exportLog()">📥 Export Log</button>
+            <button class="btn btn-secondary" onclick="printChecklist()">🖨️ Print</button>
+        </div>
+    </div>
+    
+    <button class="emergency-btn" onclick="showEmergency()">E-STOP</button>
+    
+    <div class="modal" id="emergency-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">🚨 EMERGENCY STOP</h2>
+            <div class="warning-box">
+                <div class="warning-title">IMMEDIATE ACTIONS:</div>
+                <ol style="margin-left: 20px; line-height: 2;">
+                    <li><strong>PRESS E-STOP</strong> - Red button on controller</li>
+                    <li><strong>TURN OFF ROUTER</strong> - Power switch</li>
+                    <li><strong>STEP BACK</strong> - Move away from machine</li>
+                    <li><strong>TURN OFF VACUUM</strong> - Dust collection</li>
+                    <li><strong>ASSESS</strong> - Determine what happened</li>
+                </ol>
+            </div>
+            <div style="margin-top: 20px;">
+                <strong>Common Emergencies:</strong>
+                <ul style="margin: 10px 0 0 20px; line-height: 1.8;">
+                    <li><strong>Material Loose:</strong> E-stop → Re-clamp → Re-zero → Restart</li>
+                    <li><strong>Bit Breaks:</strong> E-stop → Replace bit → Re-zero Z → Restart</li>
+                    <li><strong>Lost Steps:</strong> Power off → Check belts → Re-home → Restart</li>
+                    <li><strong>Smoke/Fire:</strong> E-stop → Extinguisher → Evacuate if needed</li>
+                </ul>
+            </div>
+            <button class="btn btn-primary modal-close" onclick="hideEmergency()">Close</button>
+        </div>
+    </div>
+    
+    <script>
+        const checklistData = {
+            quick: [
+                {
+                    title: "Safety First",
+                    icon: "⚠️",
+                    items: [
+                        { text: "Safety glasses / hearing protection / dust mask ON", priority: "critical" },
+                        { text: "Clear workspace - no debris or obstacles" },
+                        { text: "E-Stop accessible and tested" }
+                    ]
+                },
+                {
+                    title: "CAM Pre-Check",
+                    icon: "💻",
+                    items: [
+                        { text: "Correct project loaded in Easel", priority: "critical" },
+                        { text: "Material dimensions match physical material" },
+                        { text: "Bit size in file matches installed bit", priority: "critical" },
+                        { text: "Toolpath previewed - no surprises" }
+                    ]
+                },
+                {
+                    title: "Material & Clamping",
+                    icon: "📦",
+                    items: [
+                        { text: "Material secure - SHAKE TEST PASSED", priority: "critical" },
+                        { text: "Clamps clear of toolpath - verified", priority: "important" },
+                        { text: "Wasteboard clean, no debris" }
+                    ]
+                },
+                {
+                    title: "Bit & Spindle",
+                    icon: "🔧",
+                    items: [
+                        { text: "Correct bit installed and tight", priority: "critical" },
+                        { text: "Collet clean - no sawdust" },
+                        { text: "Router speed dial set (typically 2-4)" }
+                    ]
+                },
+                {
+                    title: "Zeroing",
+                    icon: "📍",
+                    items: [
+                        { text: "X, Y, Z all show 0.000", priority: "critical" },
+                        { text: "Z-PROBE REMOVED (if used)", priority: "critical" },
+                        { text: "Test 'Go to Zero' - returns correctly", priority: "important" }
+                    ]
+                },
+                {
+                    title: "Final & Start",
+                    icon: "🚀",
+                    items: [
+                        { text: "Dust collection connected and ON" },
+                        { text: "Hand near E-stop during operation" },
+                        { text: "Router turned ON - let spin up 2 seconds" },
+                        { text: "Press START in Easel" },
+                        { text: "WATCH FIRST 30 SECONDS - stay alert", priority: "critical" }
+                    ]
+                }
+            ],
+            full: [
+                {
+                    title: "Personal Safety",
+                    icon: "⚠️",
+                    items: [
+                        { text: "Safety glasses - ANSI Z87 rated", priority: "critical" },
+                        { text: "Hearing protection - earplugs or earmuffs", priority: "critical" },
+                        { text: "Dust mask - appropriate for material", priority: "critical" },
+                        { text: "Closed-toe shoes - no sandals" },
+                        { text: "Hair tied back completely" },
+                        { text: "No loose clothing - sleeves secured" },
+                        { text: "No jewelry - rings, watches, necklaces removed" },
+                        { text: "No gloves near spindle" }
+                    ]
+                },
+                {
+                    title: "CAM & File Prep",
+                    icon: "💻",
+                    items: [
+                        { text: "Correct project loaded", priority: "critical" },
+                        { text: "Material dimensions set in Easel - X, Y, Z match actual", priority: "important" },
+                        { text: "Material type selected (affects feed rates)" },
+                        { text: "Bit diameter correct - matches installed bit", priority: "critical" },
+                        { text: "Cut depths verified - through-cuts = thickness + 0.01\"" },
+                        { text: "Toolpath previewed - visual check", priority: "important" },
+                        { text: "Feed rate reasonable for material" },
+                        { text: "Clamp positions planned" }
+                    ]
+                },
+                {
+                    title: "Workspace Environment",
+                    icon: "🏠",
+                    items: [
+                        { text: "Work area clean - no clutter" },
+                        { text: "6-inch clearance maintained from router" },
+                        { text: "Good lighting - can see clearly" },
+                        { text: "E-stop accessible", priority: "critical" },
+                        { text: "Fire extinguisher nearby" },
+                        { text: "Exit path clear" },
+                        { text: "Power circuit dedicated (15A min)" },
+                        { text: "Not on GFCI outlet" }
+                    ]
+                },
+                {
+                    title: "Machine Inspection",
+                    icon: "🔍",
+                    items: [
+                        { text: "Machine level and stable" },
+                        { text: "Rails clean - X and Y vacuumed" },
+                        { text: "Wasteboard secure" },
+                        { text: "Y1 belt tension - 'guitar string test'", priority: "important" },
+                        { text: "Y2 belt tension - 'guitar string test'", priority: "important" },
+                        { text: "X belt tension - 'guitar string test'", priority: "important" },
+                        { text: "No belt fraying - inspect visually" },
+                        { text: "Belt clips tight" },
+                        { text: "Gantry moves freely (power OFF)" },
+                        { text: "X-carriage moves freely (power OFF)" },
+                        { text: "No binding in any axis" },
+                        { text: "V-wheels snug, not loose" },
+                        { text: "Router secure in Z-axis mount" }
+                    ]
+                },
+                {
+                    title: "Power Up & Connect",
+                    icon: "🔌",
+                    items: [
+                        { text: "E-stop disengaged - twist CCW until pop", priority: "critical" },
+                        { text: "Power switch OFF initially" },
+                        { text: "USB connected - computer to X-Controller" },
+                        { text: "Computer ready - Easel loaded" },
+                        { text: "Internet connected" },
+                        { text: "X-Controller powered ON" },
+                        { text: "Easel 'Connect' clicked" },
+                        { text: "Connection confirmed - green indicator" }
+                    ]
+                },
+                {
+                    title: "Material Setup",
+                    icon: "📦",
+                    items: [
+                        { text: "Material identified and safe to cut", priority: "important" },
+                        { text: "Thickness measured accurately" },
+                        { text: "Surface flat on wasteboard" },
+                        { text: "No metal contaminants (nails, screws)" },
+                        { text: "Sized correctly for work envelope" },
+                        { text: "Material CANNOT MOVE - shake test", priority: "critical" },
+                        { text: "4+ clamp points distributed", priority: "important" },
+                        { text: "Clamps below toolpath - verified", priority: "critical" },
+                        { text: "Clearance verified - jog spindle around" },
+                        { text: "No overhang risk" }
+                    ]
+                },
+                {
+                    title: "Bit Installation",
+                    icon: "🔧",
+                    items: [
+                        { text: "Correct bit type for job", priority: "important" },
+                        { text: "Bit diameter matches Easel", priority: "critical" },
+                        { text: "Bit inspected - sharp, no chips" },
+                        { text: "Shank clean - wiped with cloth" },
+                        { text: "Long enough for cut depth + 0.25\"" },
+                        { text: "Router unplugged during installation", priority: "critical" },
+                        { text: "Correct collet (1/4\" or 1/8\")" },
+                        { text: "Inserted 3/4\" minimum into collet" },
+                        { text: "Collet tightened FIRM with two wrenches", priority: "critical" },
+                        { text: "No wobble - spin test" },
+                        { text: "All wrenches removed", priority: "important" }
+                    ]
+                },
+                {
+                    title: "Dust Collection",
+                    icon: "💨",
+                    items: [
+                        { text: "Dust shoe attached to Z-axis" },
+                        { text: "Hose connected to vacuum" },
+                        { text: "No blockages in hose" },
+                        { text: "Clearance checked - won't hit clamps" },
+                        { text: "Vacuum ready and positioned" }
+                    ]
+                },
+                {
+                    title: "Homing",
+                    icon: "🏠",
+                    items: [
+                        { text: "'Home' clicked in Easel" },
+                        { text: "Z-axis homes to top" },
+                        { text: "X and Y home to front-left" },
+                        { text: "Completes smoothly - no errors" }
+                    ]
+                },
+                {
+                    title: "Zeroing (CRITICAL)",
+                    icon: "📍",
+                    items: [
+                        { text: "Jog to X/Y origin point", priority: "critical" },
+                        { text: "Origin marked and understood" },
+                        { text: "'Set X/Y Zero' clicked" },
+                        { text: "Displays X0.000 Y0.000" },
+                        { text: "Spindle jogged up for Z-probe" },
+                        { text: "Z-probe magnet attached to collet" },
+                        { text: "Touch plate on material surface" },
+                        { text: "'Probe' clicked - successful probe" },
+                        { text: "⚠️ Z-PROBE REMOVED - magnet AND plate ⚠️", priority: "critical" },
+                        { text: "⚠️ DOUBLE-CHECK REMOVED ⚠️", priority: "critical" },
+                        { text: "'Set Z Zero' confirmed - Z shows 0.000" },
+                        { text: "All zeros confirmed: X0.000 Y0.000 Z0.000", priority: "critical" },
+                        { text: "'Go to Zero' test - returns correctly", priority: "important" }
+                    ]
+                },
+                {
+                    title: "Final Pre-Carve Checks",
+                    icon: "✅",
+                    items: [
+                        { text: "Jog to all four corners - verify reach" },
+                        { text: "Adequate Z clearance over clamps", priority: "important" },
+                        { text: "No obstacles in cutting path" },
+                        { text: "Double-check clamps - still tight", priority: "critical" },
+                        { text: "Double-check zeros - still 0.000", priority: "critical" },
+                        { text: "Router speed dial set (2-4 for wood)" },
+                        { text: "Easel 'Carve' ready with correct file" }
+                    ]
+                },
+                {
+                    title: "Start & Monitor",
+                    icon: "👀",
+                    items: [
+                        { text: "Hands clear of cutting area", priority: "critical" },
+                        { text: "E-stop positioned - hand near button", priority: "critical" },
+                        { text: "Shop vac ON first", priority: "important" },
+                        { text: "Safety gear on - final check" },
+                        { text: "Router ON - let spin up 2 seconds", priority: "important" },
+                        { text: "'Start Carve' pressed" },
+                        { text: "First motion observed" },
+                        { text: "WATCH FIRST 60 SECONDS", priority: "critical" },
+                        { text: "Chips forming properly" },
+                        { text: "No unusual sounds" },
+                        { text: "Material secure - not moving" },
+                        { text: "Stay within 6 feet - no distractions", priority: "important" }
+                    ]
+                },
+                {
+                    title: "Post-Operation",
+                    icon: "🏁",
+                    items: [
+                        { text: "Router turned OFF after completion" },
+                        { text: "Wait for spindle complete stop" },
+                        { text: "Dust collection OFF" },
+                        { text: "Spindle raised to safe height" },
+                        { text: "Clamps removed carefully" },
+                        { text: "Part removed - watch sharp edges" },
+                        { text: "X-Controller powered OFF" },
+                        { text: "Vacuum work area and rails" },
+                        { text: "Collet cleaned" },
+                        { text: "Bit cleaned and stored" }
+                    ]
+                }
+            ]
+        };
+        
+        let currentMode = 'quick';
+        let checkState = {};
+        
+        // Load saved state from localStorage
+        function loadState() {
+            const saved = localStorage.getItem('cnc-checklist-state');
+            if (saved) {
+                checkState = JSON.parse(saved);
+            }
+        }
+        
+        // Save state to localStorage
+        function saveState() {
+            localStorage.setItem('cnc-checklist-state', JSON.stringify(checkState));
+        }
+        
+        // Initialize checklist
+        function initChecklist() {
+            loadState();
+            renderChecklist();
+            updateStats();
+            
+            // Mode selector buttons
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentMode = btn.dataset.mode;
+                    document.getElementById('estimatedTime').textContent = 
+                        currentMode === 'quick' ? '3-5 min' : '10-15 min';
+                    renderChecklist();
+                    updateStats();
+                });
+            });
+        }
+        
+        // Render checklist based on mode
+        function renderChecklist() {
+            const container = document.getElementById('checklist-container');
+            container.innerHTML = '';
+            
+            const data = checklistData[currentMode];
+            
+            data.forEach((section, sectionIdx) => {
+                const sectionEl = document.createElement('div');
+                sectionEl.className = 'section';
+                
+                const checkedCount = section.items.filter((item, itemIdx) => 
+                    checkState[`${currentMode}-${sectionIdx}-${itemIdx}`]
+                ).length;
+                
+                if (checkedCount === section.items.length) {
+                    sectionEl.classList.add('completed');
+                }
+                
+                sectionEl.innerHTML = `
+                    <div class="section-header">
+                        <div class="section-title">
+                            <span class="section-icon">${section.icon}</span>
+                            ${section.title}
+                        </div>
+                        <div class="section-progress">${checkedCount}/${section.items.length}</div>
+                    </div>
+                `;
+                
+                section.items.forEach((item, itemIdx) => {
+                    const itemEl = document.createElement('div');
+                    const itemKey = `${currentMode}-${sectionIdx}-${itemIdx}`;
+                    const isChecked = checkState[itemKey];
+                    
+                    itemEl.className = 'checklist-item' + (isChecked ? ' checked' : '');
+                    itemEl.innerHTML = `
+                        <div class="checkbox"></div>
+                        <div class="item-text">
+                            ${item.text}
+                            ${item.priority ? `<span class="item-priority priority-${item.priority}">${item.priority}</span>` : ''}
+                        </div>
+                    `;
+                    
+                    itemEl.addEventListener('click', () => {
+                        checkState[itemKey] = !checkState[itemKey];
+                        saveState();
+                        renderChecklist();
+                        updateStats();
+                    });
+                    
+                    sectionEl.appendChild(itemEl);
+                });
+                
+                container.appendChild(sectionEl);
+            });
+            
+            // Add tips based on mode
+            if (currentMode === 'quick') {
+                const tipBox = document.createElement('div');
+                tipBox.className = 'tip-box';
+                tipBox.innerHTML = `
+                    <div class="tip-title">💡 Quick Mode Tips</div>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li>Use this for second/third cuts in same session</li>
+                        <li>Machine shouldn't have moved since last job</li>
+                        <li>Same material type as previous cut</li>
+                        <li>If anything feels off, switch to FULL mode</li>
+                    </ul>
+                `;
+                container.appendChild(tipBox);
+            } else {
+                const warningBox = document.createElement('div');
+                warningBox.className = 'warning-box';
+                warningBox.innerHTML = `
+                    <div class="warning-title">⚠️ Critical Reminders</div>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>90% of crashes = Z-probe not removed OR bad clamping</strong></li>
+                        <li>Do the SHAKE TEST on material - if it moves even slightly, re-clamp</li>
+                        <li>Belt tension: should feel like a bass guitar string</li>
+                        <li>Never leave machine unattended during operation</li>
+                    </ul>
+                `;
+                container.appendChild(warningBox);
+            }
+        }
+        
+        // Update statistics
+        function updateStats() {
+            const data = checklistData[currentMode];
+            let totalItems = 0;
+            let checkedItems = 0;
+            
+            data.forEach((section, sectionIdx) => {
+                section.items.forEach((item, itemIdx) => {
+                    totalItems++;
+                    if (checkState[`${currentMode}-${sectionIdx}-${itemIdx}`]) {
+                        checkedItems++;
+                    }
+                });
+            });
+            
+            const percent = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
+            document.getElementById('progressPercent').textContent = percent + '%';
+        }
+        
+        // Reset all checkboxes
+        function resetAll() {
+            if (confirm('Reset all checkboxes? This will clear your progress.')) {
+                checkState = {};
+                saveState();
+                renderChecklist();
+                updateStats();
+            }
+        }
+        
+        // Export log
+        function exportLog() {
+            const data = checklistData[currentMode];
+            let log = `X-CARVE CNC PRE-FLIGHT LOG\n`;
+            log += `Mode: ${currentMode.toUpperCase()}\n`;
+            log += `Date: ${new Date().toLocaleString()}\n`;
+            log += `\n${'='.repeat(50)}\n\n`;
+            
+            data.forEach((section, sectionIdx) => {
+                log += `${section.icon} ${section.title}\n`;
+                log += `${'-'.repeat(40)}\n`;
+                section.items.forEach((item, itemIdx) => {
+                    const checked = checkState[`${currentMode}-${sectionIdx}-${itemIdx}`];
+                    log += `[${checked ? '✓' : ' '}] ${item.text}\n`;
+                });
+                log += `\n`;
+            });
+            
+            const blob = new Blob([log], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cnc-checklist-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+        }
+        
+        // Print checklist
+        function printChecklist() {
+            window.print();
+        }
+        
+        // Emergency modal
+        function showEmergency() {
+            document.getElementById('emergency-modal').classList.add('active');
+        }
+        
+        function hideEmergency() {
+            document.getElementById('emergency-modal').classList.remove('active');
+        }
+        
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', initChecklist);
+    </script>
+</body>
+</html>
