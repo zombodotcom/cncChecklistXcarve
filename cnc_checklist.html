@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>X-Carve CNC Pre-Flight Checklist</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600;700;800&display=swap');
         
@@ -158,6 +159,22 @@
         
         .stat-card.progress .stat-value { color: var(--primary); }
         .stat-card.time .stat-value { color: var(--success); }
+        
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-card);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-hover) 100%);
+            transition: width 0.4s ease;
+            border-radius: 4px;
+        }
         
         .section {
             background: var(--bg-elevated);
@@ -487,6 +504,90 @@
         .modal-close {
             margin-top: 18px;
         }
+        
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 14px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+        }
+        
+        .search-box::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .control-btn {
+            padding: 10px 16px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        
+        .control-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(245, 158, 11, 0.08);
+        }
+        
+        .control-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--bg);
+        }
+        
+        .settings-icon {
+            cursor: pointer;
+            padding: 10px;
+            color: var(--text-muted);
+            transition: color 0.2s ease;
+        }
+        
+        .settings-icon:hover {
+            color: var(--primary);
+        }
+        
+        .checkbox-setting {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 0;
+        }
+        
+        .checkbox-setting input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .checklist-item.hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -511,11 +612,21 @@
             <div class="stat-card progress">
                 <div class="stat-value" id="progressPercent">0%</div>
                 <div class="stat-label">Progress</div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar" style="width: 0%"></div>
+                </div>
             </div>
             <div class="stat-card time">
                 <div class="stat-value" id="estimatedTime">10-15 min</div>
                 <div class="stat-label">Est. Time</div>
             </div>
+        </div>
+        
+        <div class="controls">
+            <input type="text" class="search-box" id="searchBox" placeholder="🔍 Search checklist items...">
+            <button class="control-btn" onclick="collapseAll()">▲ Collapse All</button>
+            <button class="control-btn" onclick="expandAll()">▼ Expand All</button>
+            <span class="settings-icon" onclick="showSettings()" title="Settings">⚙️</span>
         </div>
         
         <div id="checklist-container"></div>
@@ -552,6 +663,24 @@
                 </ul>
             </div>
             <button class="btn btn-primary modal-close" onclick="hideEmergency()">Close</button>
+        </div>
+    </div>
+    
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">⚙️ Settings</h2>
+            <div class="checkbox-setting">
+                <input type="checkbox" id="confettiEnabled" onchange="toggleConfetti()" checked>
+                <label for="confettiEnabled">Enable celebration effects when sections complete</label>
+            </div>
+            <button class="btn btn-secondary" onclick="testConfetti()" style="margin-top: 12px;">🎉 Test Confetti</button>
+            <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+                <button class="btn btn-secondary" onclick="clearAllData()" style="color: var(--danger); border-color: var(--danger);">
+                    🗑️ Clear all saved data
+                </button>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">Resets checkboxes, collapsed sections, and settings. Hard reload won’t bring them back.</p>
+            </div>
+            <button class="btn btn-primary modal-close" onclick="hideSettings()" style="margin-top: 12px;">Close</button>
         </div>
     </div>
     
@@ -818,6 +947,10 @@
         let currentMode = 'full';
         let checkState = {};
         let collapsedState = {};
+        let confettiEnabled = true;
+        let searchQuery = '';
+        let previousCompletionState = {};
+        let isInitialLoad = true;
         
         // Load saved state from localStorage (supports old format: flat checkState only)
         function loadState() {
@@ -832,6 +965,12 @@
                     collapsedState = {};
                 }
             }
+            
+            const settings = localStorage.getItem('cnc-checklist-settings');
+            if (settings) {
+                const settingsData = JSON.parse(settings);
+                confettiEnabled = settingsData.confettiEnabled !== false;
+            }
         }
         
         // Save state to localStorage
@@ -840,11 +979,25 @@
             localStorage.setItem('cnc-checklist-state', JSON.stringify(data));
         }
         
+        // Save settings to localStorage
+        function saveSettings() {
+            const settings = { confettiEnabled };
+            localStorage.setItem('cnc-checklist-settings', JSON.stringify(settings));
+        }
+        
         // Initialize checklist
         function initChecklist() {
             loadState();
             renderChecklist();
             updateStats();
+            
+            // Mark initial load complete after first render
+            setTimeout(() => {
+                isInitialLoad = false;
+            }, 100);
+            
+            // Update settings UI
+            document.getElementById('confettiEnabled').checked = confettiEnabled;
             
             // Mode selector buttons
             document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -854,9 +1007,34 @@
                     currentMode = btn.dataset.mode;
                     document.getElementById('estimatedTime').textContent = 
                         currentMode === 'quick' ? '3-5 min' : '10-15 min';
+                    
+                    // Reset completion tracking when switching modes
+                    previousCompletionState = {};
+                    isInitialLoad = true;
                     renderChecklist();
                     updateStats();
+                    setTimeout(() => {
+                        isInitialLoad = false;
+                    }, 100);
                 });
+            });
+            
+            // Search box
+            document.getElementById('searchBox').addEventListener('input', (e) => {
+                searchQuery = e.target.value.toLowerCase();
+                filterItems();
+            });
+        }
+        
+        // Filter items based on search
+        function filterItems() {
+            document.querySelectorAll('.checklist-item').forEach(item => {
+                const text = item.querySelector('.item-text').textContent.toLowerCase();
+                if (searchQuery === '' || text.includes(searchQuery)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
             });
         }
         
@@ -875,11 +1053,25 @@
                     checkState[`${currentMode}-${sectionIdx}-${itemIdx}`]
                 ).length;
                 
-                if (checkedCount === section.items.length) {
+                const sectionKey = `${currentMode}-${sectionIdx}`;
+                const wasCompleted = previousCompletionState[sectionKey] || false;
+                const isNowCompleted = checkedCount === section.items.length;
+                
+                // Trigger confetti if section just became complete
+                if (isNowCompleted && !wasCompleted && !isInitialLoad && confettiEnabled) {
+                    console.log('Section completed! Triggering confetti for:', section.title);
+                    setTimeout(() => {
+                        randomConfetti();
+                    }, 100);
+                }
+                
+                if (isNowCompleted) {
                     sectionEl.classList.add('completed');
                 }
                 
-                const sectionKey = `${currentMode}-${sectionIdx}`;
+                // Store current completion state for next render
+                previousCompletionState[sectionKey] = isNowCompleted;
+                
                 const isCollapsed = collapsedState[sectionKey];
                 if (isCollapsed) {
                     sectionEl.classList.add('collapsed');
@@ -917,8 +1109,16 @@
                     
                     itemEl.addEventListener('click', (e) => {
                         e.stopPropagation();
+                        const previousState = checkState[itemKey];
                         checkState[itemKey] = !checkState[itemKey];
                         saveState();
+                        
+                        // Check if section just became completed
+                        const newCheckedCount = section.items.filter((item, idx) => 
+                            checkState[`${currentMode}-${sectionIdx}-${idx}`]
+                        ).length;
+                        const justCompleted = !previousState && newCheckedCount === section.items.length;
+                        
                         renderChecklist();
                         updateStats();
                     });
@@ -934,6 +1134,11 @@
                 
                 container.appendChild(sectionEl);
             });
+            
+            // Apply search filter if active
+            if (searchQuery) {
+                filterItems();
+            }
             
             // Add tips based on mode
             if (currentMode === 'quick') {
@@ -982,6 +1187,7 @@
             
             const percent = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
             document.getElementById('progressPercent').textContent = percent + '%';
+            document.getElementById('progressBar').style.width = percent + '%';
         }
         
         // Reset all checkboxes
@@ -1032,6 +1238,187 @@
         
         function hideEmergency() {
             document.getElementById('emergency-modal').classList.remove('active');
+        }
+        
+        // Settings modal
+        function showSettings() {
+            document.getElementById('settings-modal').classList.add('active');
+        }
+        
+        function hideSettings() {
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+        
+        function toggleConfetti() {
+            confettiEnabled = document.getElementById('confettiEnabled').checked;
+            saveSettings();
+        }
+        
+        function randomConfetti() {
+            if (typeof confetti === 'undefined') {
+                console.error('Confetti library not loaded');
+                return;
+            }
+            
+            const colors = ['#F59E0B', '#10B981', '#0EA5E9', '#FBBF24', '#DC2626', '#8B5CF6'];
+            const effects = [
+                // Classic burst
+                () => {
+                    confetti({
+                        particleCount: 100 + Math.random() * 50,
+                        spread: 60 + Math.random() * 40,
+                        origin: { y: 0.6 },
+                        colors: colors
+                    });
+                },
+                // Side cannons
+                () => {
+                    confetti({
+                        particleCount: 50,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 },
+                        colors: colors
+                    });
+                    confetti({
+                        particleCount: 50,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 },
+                        colors: colors
+                    });
+                },
+                // Rain from top
+                () => {
+                    const duration = 1500;
+                    const end = Date.now() + duration;
+                    (function frame() {
+                        confetti({
+                            particleCount: 2,
+                            angle: 90,
+                            spread: 45,
+                            origin: { x: Math.random(), y: 0 },
+                            colors: colors,
+                            ticks: 200
+                        });
+                        if (Date.now() < end) {
+                            requestAnimationFrame(frame);
+                        }
+                    }());
+                },
+                // Fireworks
+                () => {
+                    confetti({
+                        particleCount: 50,
+                        startVelocity: 45,
+                        spread: 360,
+                        ticks: 60,
+                        origin: { x: 0.3 + Math.random() * 0.4, y: 0.5 + Math.random() * 0.2 },
+                        colors: colors
+                    });
+                    setTimeout(() => {
+                        confetti({
+                            particleCount: 50,
+                            startVelocity: 45,
+                            spread: 360,
+                            ticks: 60,
+                            origin: { x: 0.3 + Math.random() * 0.4, y: 0.5 + Math.random() * 0.2 },
+                            colors: colors
+                        });
+                    }, 200);
+                },
+                // Realistic confetti with gravity
+                () => {
+                    const count = 100 + Math.random() * 50;
+                    const defaults = {
+                        origin: { y: 0.7 },
+                        colors: colors
+                    };
+                    confetti({
+                        ...defaults,
+                        particleCount: Math.floor(count * 0.25),
+                        spread: 26,
+                        startVelocity: 55,
+                    });
+                    confetti({
+                        ...defaults,
+                        particleCount: Math.floor(count * 0.2),
+                        spread: 60,
+                    });
+                    confetti({
+                        ...defaults,
+                        particleCount: Math.floor(count * 0.35),
+                        spread: 100,
+                        decay: 0.91,
+                        scalar: 0.8
+                    });
+                    confetti({
+                        ...defaults,
+                        particleCount: Math.floor(count * 0.1),
+                        spread: 120,
+                        startVelocity: 25,
+                        decay: 0.92,
+                        scalar: 1.2
+                    });
+                    confetti({
+                        ...defaults,
+                        particleCount: Math.floor(count * 0.1),
+                        spread: 120,
+                        startVelocity: 45,
+                    });
+                }
+            ];
+            
+            // Pick a random effect
+            const randomEffect = effects[Math.floor(Math.random() * effects.length)];
+            randomEffect();
+        }
+        
+        function testConfetti() {
+            randomConfetti();
+        }
+        
+        function clearAllData() {
+            if (!confirm('Clear all saved data? Checkboxes, collapsed sections, and settings will be reset.')) {
+                return;
+            }
+            localStorage.removeItem('cnc-checklist-state');
+            localStorage.removeItem('cnc-checklist-settings');
+            checkState = {};
+            collapsedState = {};
+            previousCompletionState = {};
+            isInitialLoad = true;
+            confettiEnabled = true;
+            document.getElementById('confettiEnabled').checked = true;
+            saveSettings();
+            saveState();
+            renderChecklist();
+            updateStats();
+            hideSettings();
+            setTimeout(() => {
+                isInitialLoad = false;
+            }, 100);
+        }
+        
+        // Collapse/expand all
+        function collapseAll() {
+            const data = checklistData[currentMode];
+            data.forEach((section, sectionIdx) => {
+                const sectionKey = `${currentMode}-${sectionIdx}`;
+                collapsedState[sectionKey] = true;
+            });
+            saveState();
+            renderChecklist();
+        }
+        
+        function expandAll() {
+            const data = checklistData[currentMode];
+            data.forEach((section, sectionIdx) => {
+                const sectionKey = `${currentMode}-${sectionIdx}`;
+                collapsedState[sectionKey] = false;
+            });
+            saveState();
+            renderChecklist();
         }
         
         // Initialize on load
