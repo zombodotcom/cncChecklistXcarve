@@ -1,0 +1,11 @@
+{
+  "name": "cnc-checklist-xcarve",
+  "private": true,
+  "scripts": {
+    "dev": "live-server --port=3000 --open=/cnc_checklist.html --ignore=node_modules",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}
